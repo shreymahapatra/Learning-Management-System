@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Enrollment Management</title>
+    <link rel="stylesheet" href="../css/style.css" />
+    <link rel="icon" href="data:,">
+</head>
+<body>
+<div class="container">
+    <button onclick="logout()" style="float: right;">🚪 Logout</button>
+    <a href="/index.html" style="display: inline-block; margin-top: 10px;">⬅️ Back to Home</a>
+
+    <h1>Enrollment Management</h1>
+
+    <h2>Enroll Student to Course</h2>
+    <form id="enrollmentForm">
+        <input type="number" id="studentId" placeholder="Student ID" required />
+        <input type="number" id="courseId" placeholder="Course ID" required />
+        <input type="number" id="grade" placeholder="Grade (0.0 - 100.0)" min="0" max="100" step="0.1" required />
+        <button type="submit">Enroll</button>
+    </form>
+
+    <h2>All Enrollments</h2>
+    <table id="enrollmentTable">
+        <thead>
+        <tr>
+            <th>Enrollment ID</th>
+            <th>Student</th>
+            <th>Course</th>
+            <th>Grade</th>
+            <th>Actions</th>
+        </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</div>
+
+<script src="../js/main.js"></script>
+<script>
+    function logout() {
+        if (confirm("Do you want to logout?")) {
+            localStorage.removeItem("auth");
+            window.location.href = "/html/login.html";
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const API_URL = "/api/enrollments";
+
+        async function fetchEnrollments() {
+            try {
+                const res = await fetch(API_URL, { headers: authHeaders() });
+                const data = await res.json();
+                renderEnrollments(data);
+            } catch (error) {
+                alert("⚠️ Failed to load enrollments.");
+                console.error(error);
+            }
+        }
+
+        function renderEnrollments(enrollments) {
+            const tbody = document.querySelector("#enrollmentTable tbody");
+            tbody.innerHTML = "";
+
+            enrollments.forEach(enrollment => {
+                const row = document.createElement("tr");
+                row.setAttribute("data-id", enrollment.id);
+
+                row.innerHTML = `
+                <td>${enrollment.id}</td>
+                <td>${enrollment.student?.name || 'N/A'}</td>
+                <td>${enrollment.course?.title || 'N/A'}</td>
+                <td>
+                    <span>${enrollment.grade}</span>
+                    <input type="number" min="0" max="100" class="edit-input" value="${enrollment.grade}" style="display:none" />
+                </td>
+                <td>
+                    <button class="edit-btn">Edit</button>
+                    <button class="save-btn" style="display:none">Save</button>
+                    <button class="cancel-btn" style="display:none">Cancel</button>
+                </td>
+            `;
+                tbody.appendChild(row);
+            });
+
+            attachEnrollmentRowEvents();
+        }
+
+        function attachEnrollmentRowEvents() {
+            document.querySelectorAll(".edit-btn").forEach(btn => {
+                btn.onclick = (e) => {
+                    const row = e.target.closest("tr");
+                    row.querySelector("span").style.display = "none";
+                    row.querySelector(".edit-input").style.display = "inline";
+                    row.querySelector(".edit-btn").style.display = "none";
+                    row.querySelector(".save-btn").style.display = "inline";
+                    row.querySelector(".cancel-btn").style.display = "inline";
+                };
+            });
+
+            document.querySelectorAll(".cancel-btn").forEach(btn => {
+                btn.onclick = () => fetchEnrollments();
+            });
+
+            document.querySelectorAll(".save-btn").forEach(btn => {
+                btn.onclick = async (e) => {
+                    const row = e.target.closest("tr");
+                    const id = row.getAttribute("data-id");
+                    const gradeInput = row.querySelector(".edit-input").value;
+
+                    const updated = {
+                        grade: parseFloat(gradeInput)
+                    };
+
+                    try {
+                        await fetch(`${API_URL}/${id}`, {
+                            method: "PUT",
+                            headers: jsonAuthHeaders(),
+                            body: JSON.stringify(updated)
+                        });
+
+                        showSuccess("Grade updated.");
+                        fetchEnrollments();
+                    } catch (error) {
+                        showError("Failed to update grade.");
+                        console.error(error);
+                    }
+                };
+            });
+        }
+
+        document.getElementById("enrollmentForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+
+            const enrollment = {
+                student: { id: parseInt(document.getElementById("studentId").value) },
+                course: { id: parseInt(document.getElementById("courseId").value) },
+                grade: parseFloat(document.getElementById("grade").value)
+            };
+
+            try {
+                await fetch(API_URL, {
+                    method: "POST",
+                    headers: jsonAuthHeaders(),
+                    body: JSON.stringify(enrollment)
+                });
+
+                showSuccess("Enrollment added successfully.");
+                document.getElementById("enrollmentForm").reset();
+                fetchEnrollments();
+            } catch (error) {
+                showError("Failed to add enrollment.");
+                console.error(error);
+            }
+        });
+
+        fetchEnrollments();
+    });
+</script>
+</body>
+</html>

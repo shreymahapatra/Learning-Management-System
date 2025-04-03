@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Student Progress Report</title>
+    <link rel="stylesheet" href="../css/style.css" />
+    <link rel="icon" href="data:,">
+</head>
+<body>
+<div class="container">
+    <button onclick="logout()" style="float: right;">🚪 Logout</button>
+    <a href="/index.html" style="display: inline-block; margin-top: 10px;">⬅️ Back to Home</a>
+
+    <h1>📊 Student Progress Report</h1>
+
+    <table id="reportTable">
+        <thead>
+        <tr>
+            <th>Student ID</th>
+            <th>Name</th>
+            <th>Courses Enrolled</th>
+            <th>Average Grade</th>
+            <th>Highest Grade</th>
+            <th>Lowest Grade</th>
+        </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</div>
+
+<script src="../js/main.js"></script>
+<script>
+    function logout() {
+        if (confirm("Do you want to logout?")) {
+            localStorage.removeItem("auth");
+            window.location.href = "/html/login.html";
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        fetch("/api/enrollments/progress", {
+            headers: authHeaders()
+        })
+            .then(res => res.json())
+            .then(data => {
+                const tbody = document.querySelector("#reportTable tbody");
+                tbody.innerHTML = "";
+
+                data.forEach(report => {
+                    const row = `
+                    <tr>
+                        <td>${report.studentId}</td>
+                        <td>${report.studentName}</td>
+                        <td>${report.courseCount}</td>
+                        <td>${report.averageGrade.toFixed(2)}</td>
+                        <td>${report.maxGrade.toFixed(2)}</td>
+                        <td>${report.minGrade.toFixed(2)}</td>
+                    </tr>
+                `;
+                    tbody.innerHTML += row;
+                });
+            })
+            .catch(error => {
+                alert("⚠️ Failed to load student progress report.");
+                console.error(error);
+            });
+    });
+</script>
+</body>
+</html>
